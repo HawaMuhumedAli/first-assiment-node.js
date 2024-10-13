@@ -1,82 +1,36 @@
 function calculateTotalTarget(startDate, endDate, totalAnnualTarget) {
-    // Helper function to check if a date is a Friday
-    const isFriday = (date) => date.getDay() === 5;
-
-    // Helper function to check if a date is a weekend
-    const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
-
-    // Helper function to get the number of days in a month
-    const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-
-    // Helper function to generate dates from the start of the month to the end of the month
-    const getDaysOfMonth = (year, month, startDate, endDate) => {
-        const days = [];
-        const start = new Date(year, month, 1);
-        const end = new Date(year, month, daysInMonth(year, month));
-
-        for (let date = start; date <= end; date.setDate(date.getDate() + 1)) {
-            if (date >= startDate && date <= endDate && !isFriday(date) && !isWeekend(date)) {
-                days.push(new Date(date));
-
-            }
-        }
-
-        return days;
-    };
-
-    // Parse input dates
     const start = new Date(startDate);
     const end = new Date(endDate);
+    
+    const daysExcludingFridays = new Array(12).fill(0); // Stores working days for each month
 
-    // Arrays to store the results
-    const daysExcludingFridays = [];
-    const daysWorkedExcludingFridays = [];
-    const monthlyTargets = [];
-
-    // Track the total working days (excluding Fridays)
-    let totalWorkingDays = 0;
-
-    // Start iterating from the start month to the end month
-    let currentDate = new Date(start.getFullYear(), start.getMonth(), 1);
-
+    let currentDate = new Date(start); // Copy the start date
     while (currentDate <= end) {
-        const currentMonth = currentDate.getMonth();
-        const currentYear = currentDate.getFullYear();
-
-        // Calculate the full range of days in the current month
-        const allWorkingDays = getDaysOfMonth(currentYear, currentMonth, new Date(currentYear, currentMonth, 1), new Date(currentYear, currentMonth, daysInMonth(currentYear, currentMonth)));
-        const actualWorkingDays = getDaysOfMonth(currentYear, currentMonth, start, end);
-
-        // Calculate the number of valid working days excluding Fridays
-        daysExcludingFridays.push(allWorkingDays.length);
-        daysWorkedExcludingFridays.push(actualWorkingDays.length);
-
-        // Accumulate total working days for the range
-        totalWorkingDays += actualWorkingDays.length;
-
-        // Move to the next month
-        currentDate.setMonth(currentDate.getMonth() + 1);
-        currentDate.setDate(1); // Ensure the date is the first of the next month
+        if (currentDate.getDay() !== 5) { // 5 is Friday
+            const monthIndex = currentDate.getMonth(); // Get month index
+            daysExcludingFridays[monthIndex]++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
     }
 
-    // Calculate the monthly target proportionally based on the total working days
-    daysWorkedExcludingFridays.forEach((days) => {
-        const proportion = days / totalWorkingDays;
-        monthlyTargets.push(proportion * totalAnnualTarget);
-    });
+    // Evenly distribute the target across all 12 months
+    const monthlyTarget = totalAnnualTarget / 12;
+    
+    // Monthly targets for each month that has workdays
+    const monthlyTargets = daysExcludingFridays.map((days, index) => 
+        days > 0 ? monthlyTarget : 0 // Assign monthly target only to months with workdays
+    );
 
-    // Calculate the total target based on worked days
-    const totalTarget = monthlyTargets.reduce((acc, val) => acc + val, 0);
+    // Sum up the total target from monthly targets (which will equal totalAnnualTarget)
+    const totalTarget = monthlyTargets.reduce((acc, target) => acc + target, 0);
 
-    // Return the result object
-    return {
-        daysExcludingFridays,
-        daysWorkedExcludingFridays,
-        monthlyTargets,
-        totalTarget,
-    };
+    // Return output in the required format
+    return JSON.stringify({
+        "daysWorkedExcludingFridays": daysExcludingFridays.filter(days => days > 0), // Filter months with days
+        "monthlyTargets": monthlyTargets.filter(target => target > 0), // Filter months with targets
+        "totalTarget": totalTarget // Sum of the monthly targets
+    }, null, 2); // Pretty-print JSON with 2-space indentation
 }
 
 // Example usage
-const result = calculateTotalTarget('2024-01-01', '2024-02-31', 390);
-console.log(result);
+console.log(calculateTotalTarget('2024-01-01', '2024-03-31', 5220));
